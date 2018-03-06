@@ -89,6 +89,10 @@ def freeze_graph_with_def_protos(
 
       variable_names_blacklist = (variable_names_blacklist.split(',') if
                                   variable_names_blacklist else None)
+      if variable_names_blacklist is None:
+        variable_names_blacklist = []
+      #variable_names_blacklist = variable_names_blacklist + output_node_names.split(',')
+
       output_graph_def = graph_util.convert_variables_to_constants(
           sess,
           input_graph_def,

@@ -43,12 +43,12 @@ SCRATCH_DIR="${OUTPUT_DIR}/raw-data"
 mkdir -p "${OUTPUT_DIR}"
 mkdir -p "${SCRATCH_DIR}"
 CURRENT_DIR=$(pwd)
-
+echo "OUTPUT DIR: $OUTPUT_DIR"
 # Helper function to download and unpack a .zip file.
 function download_and_unzip() {
   local BASE_URL=${1}
   local FILENAME=${2}
-
+  echo ${1}
   if [ ! -f ${FILENAME} ]; then
     echo "Downloading ${FILENAME} to $(pwd)"
     wget -nd -c "${BASE_URL}/${FILENAME}"
@@ -64,7 +64,7 @@ cd ${SCRATCH_DIR}
 # Download the images.
 BASE_IMAGE_URL="http://images.cocodataset.org/zips"
 
-# TRAIN_IMAGE_FILE="train2017.zip"
+TRAIN_IMAGE_FILE="train2017.zip"
 download_and_unzip ${BASE_IMAGE_URL} ${TRAIN_IMAGE_FILE}
 TRAIN_IMAGE_DIR="${SCRATCH_DIR}/train2017"
 
