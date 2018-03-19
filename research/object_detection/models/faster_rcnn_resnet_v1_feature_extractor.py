@@ -44,7 +44,8 @@ class FasterRCNNResnetV1FeatureExtractor(
                first_stage_features_stride,
                batch_norm_trainable=False,
                reuse_weights=None,
-               weight_decay=0.0):
+               weight_decay=0.0,
+               convDict=None):
     """Constructor.
 
     Args:
@@ -63,6 +64,9 @@ class FasterRCNNResnetV1FeatureExtractor(
       raise ValueError('`first_stage_features_stride` must be 8 or 16.')
     self._architecture = architecture
     self._resnet_model = resnet_model
+    self._convDict = convDict
+    if self._convDict is None:
+      raise ValueError('HUMMMMMMMMMMMMMMMMM')
     super(FasterRCNNResnetV1FeatureExtractor, self).__init__(
         is_training, first_stage_features_stride, batch_norm_trainable,
         reuse_weights, weight_decay)
@@ -120,14 +124,25 @@ class FasterRCNNResnetV1FeatureExtractor(
               weight_decay=self._weight_decay)):
         with tf.variable_scope(
             self._architecture, reuse=self._reuse_weights) as var_scope:
-          _, activations = self._resnet_model(
-              preprocessed_inputs,
-              num_classes=None,
-              is_training=self._train_batch_norm,
-              global_pool=False,
-              output_stride=self._first_stage_features_stride,
-              spatial_squeeze=False,
-              scope=var_scope)
+          if self._convDict is None:
+            _, activations = self._resnet_model(
+                preprocessed_inputs,
+                num_classes=None,
+                is_training=self._train_batch_norm,
+                global_pool=False,
+                output_stride=self._first_stage_features_stride,
+                spatial_squeeze=False,
+                scope=var_scope)
+          else:
+            _, activations = self._resnet_model(
+                preprocessed_inputs,
+                self._convDict,
+                num_classes=None,
+                is_training=self._train_batch_norm,
+                global_pool=False,
+                output_stride=self._first_stage_features_stride,
+                spatial_squeeze=False,
+                scope=var_scope)
 
     handle = scope + '/%s/block3' % self._architecture
     return activations[handle]
@@ -165,6 +180,65 @@ class FasterRCNNResnetV1FeatureExtractor(
               proposal_feature_maps, blocks)
     return proposal_classifier_features
 
+class FasterRCNNResnetXFeatureExtractor(FasterRCNNResnetV1FeatureExtractor):
+  """Faster R-CNN Resnet X feature extractor implementation."""
+
+  def __init__(self,
+               is_training,
+               first_stage_features_stride,
+               batch_norm_trainable=False,
+               reuse_weights=None,
+               weight_decay=0.0,
+               convDict=None):
+    """Constructor.
+
+    Args:
+      is_training: See base class.
+      first_stage_features_stride: See base class.
+      batch_norm_trainable: See base class.
+      reuse_weights: See base class.
+      weight_decay: See base class.
+
+    Raises:
+      ValueError: If `first_stage_features_stride` is not 8 or 16,
+        or if `architecture` is not supported.
+    """
+    if convDict is None:
+      raise ValueError("ConvDict is None ERROR")
+    super(FasterRCNNResnetXFeatureExtractor, self).__init__(
+        'resnet_v1_X', resnet_v1.resnet_v1_X, is_training,
+        first_stage_features_stride, batch_norm_trainable,
+        reuse_weights, weight_decay, convDict)
+
+
+class FasterRCNNResnet34FeatureExtractor(FasterRCNNResnetV1FeatureExtractor):
+  """Faster R-CNN Resnet 34 feature extractor implementation."""
+
+  def __init__(self,
+               is_training,
+               first_stage_features_stride,
+               batch_norm_trainable=False,
+               reuse_weights=None,
+               weight_decay=0.0):
+    """Constructor.
+
+    Args:
+      is_training: See base class.
+      first_stage_features_stride: See base class.
+      batch_norm_trainable: See base class.
+      reuse_weights: See base class.
+      weight_decay: See base class.
+
+    Raises:
+      ValueError: If `first_stage_features_stride` is not 8 or 16,
+        or if `architecture` is not supported.
+    """
+    super(FasterRCNNResnet34FeatureExtractor, self).__init__(
+        'resnet_v1_34', resnet_v1.resnet_v1_34, is_training,
+        first_stage_features_stride, batch_norm_trainable,
+        reuse_weights, weight_decay, None)
+
+
 
 class FasterRCNNResnet50FeatureExtractor(FasterRCNNResnetV1FeatureExtractor):
   """Faster R-CNN Resnet 50 feature extractor implementation."""
@@ -191,7 +265,7 @@ class FasterRCNNResnet50FeatureExtractor(FasterRCNNResnetV1FeatureExtractor):
     super(FasterRCNNResnet50FeatureExtractor, self).__init__(
         'resnet_v1_50', resnet_v1.resnet_v1_50, is_training,
         first_stage_features_stride, batch_norm_trainable,
-        reuse_weights, weight_decay)
+        reuse_weights, weight_decay, None)
 
 
 class FasterRCNNResnet101FeatureExtractor(FasterRCNNResnetV1FeatureExtractor):
@@ -219,7 +293,7 @@ class FasterRCNNResnet101FeatureExtractor(FasterRCNNResnetV1FeatureExtractor):
     super(FasterRCNNResnet101FeatureExtractor, self).__init__(
         'resnet_v1_101', resnet_v1.resnet_v1_101, is_training,
         first_stage_features_stride, batch_norm_trainable,
-        reuse_weights, weight_decay)
+        reuse_weights, weight_decay, None)
 
 
 class FasterRCNNResnet152FeatureExtractor(FasterRCNNResnetV1FeatureExtractor):
@@ -247,4 +321,4 @@ class FasterRCNNResnet152FeatureExtractor(FasterRCNNResnetV1FeatureExtractor):
     super(FasterRCNNResnet152FeatureExtractor, self).__init__(
         'resnet_v1_152', resnet_v1.resnet_v1_152, is_training,
         first_stage_features_stride, batch_norm_trainable,
-        reuse_weights, weight_decay)
+        reuse_weights, weight_decay, None)

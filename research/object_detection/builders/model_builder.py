@@ -39,6 +39,8 @@ from object_detection.models.ssd_inception_v3_feature_extractor import SSDIncept
 from object_detection.models.ssd_mobilenet_v1_feature_extractor import SSDMobileNetV1FeatureExtractor
 from object_detection.protos import model_pb2
 
+import functools
+
 # A map of names to SSD feature extractors.
 SSD_FEATURE_EXTRACTOR_CLASS_MAP = {
     'ssd_inception_v2': SSDInceptionV2FeatureExtractor,
@@ -58,6 +60,10 @@ FASTER_RCNN_FEATURE_EXTRACTOR_CLASS_MAP = {
     frcnn_inc_res.FasterRCNNInceptionResnetV2FeatureExtractor,
     'faster_rcnn_inception_v2':
     frcnn_inc_v2.FasterRCNNInceptionV2FeatureExtractor,
+    'faster_rcnn_resnet34':
+    frcnn_resnet_v1.FasterRCNNResnet34FeatureExtractor,
+    'faster_rcnn_resnet_X':
+    frcnn_resnet_v1.FasterRCNNResnetXFeatureExtractor,
     'faster_rcnn_resnet50':
     frcnn_resnet_v1.FasterRCNNResnet50FeatureExtractor,
     'faster_rcnn_resnet101':
@@ -66,8 +72,7 @@ FASTER_RCNN_FEATURE_EXTRACTOR_CLASS_MAP = {
     frcnn_resnet_v1.FasterRCNNResnet152FeatureExtractor,
 }
 
-
-def build(model_config, is_training, add_summaries=True):
+def build_custom(model_config, is_training, covnDict, add_summaries=True):
   """Builds a DetectionModel based on the model config.
 
   Args:
@@ -90,6 +95,31 @@ def build(model_config, is_training, add_summaries=True):
   if meta_architecture == 'faster_rcnn':
     return _build_faster_rcnn_model(model_config.faster_rcnn, is_training,
                                     add_summaries)
+  raise ValueError('Unknown meta architecture: {}'.format(meta_architecture))
+
+def build(model_config, is_training, add_summaries=True, convDict=None):
+  """Builds a DetectionModel based on the model config.
+
+  Args:
+    model_config: A model.proto object containing the config for the desired
+      DetectionModel.
+    is_training: True if this model is being built for training purposes.
+    add_summaries: Whether to add tensorflow summaries in the model graph.
+
+  Returns:
+    DetectionModel based on the config.
+
+  Raises:
+    ValueError: On invalid meta architecture or model.
+  """
+  if not isinstance(model_config, model_pb2.DetectionModel):
+    raise ValueError('model_config not of type model_pb2.DetectionModel.')
+  meta_architecture = model_config.WhichOneof('model')
+  if meta_architecture == 'ssd':
+    return _build_ssd_model(model_config.ssd, is_training, add_summaries)
+  if meta_architecture == 'faster_rcnn':
+    return _build_faster_rcnn_model(model_config.faster_rcnn, is_training,
+                                    add_summaries, convDict)
   raise ValueError('Unknown meta architecture: {}'.format(meta_architecture))
 
 
@@ -187,7 +217,7 @@ def _build_ssd_model(ssd_config, is_training, add_summaries):
 
 
 def _build_faster_rcnn_feature_extractor(
-    feature_extractor_config, is_training, reuse_weights=None):
+    feature_extractor_config, is_training, reuse_weights=None, convDict=None):
   """Builds a faster_rcnn_meta_arch.FasterRCNNFeatureExtractor based on config.
 
   Args:
@@ -212,12 +242,13 @@ def _build_faster_rcnn_feature_extractor(
         feature_type))
   feature_extractor_class = FASTER_RCNN_FEATURE_EXTRACTOR_CLASS_MAP[
       feature_type]
+
   return feature_extractor_class(
       is_training, first_stage_features_stride,
-      batch_norm_trainable, reuse_weights)
+      batch_norm_trainable, reuse_weights, 0.0, convDict)
 
 
-def _build_faster_rcnn_model(frcnn_config, is_training, add_summaries):
+def _build_faster_rcnn_model(frcnn_config, is_training, add_summaries, convDict=None):
   """Builds a Faster R-CNN or R-FCN detection model based on the model config.
 
   Builds R-FCN model if the second_stage_box_predictor in the config is of type
@@ -238,8 +269,12 @@ def _build_faster_rcnn_model(frcnn_config, is_training, add_summaries):
   num_classes = frcnn_config.num_classes
   image_resizer_fn = image_resizer_builder.build(frcnn_config.image_resizer)
 
-  feature_extractor = _build_faster_rcnn_feature_extractor(
-      frcnn_config.feature_extractor, is_training)
+  if frcnn_config.feature_extractor.type ==  'faster_rcnn_resnet_X':
+    feature_extractor = _build_faster_rcnn_feature_extractor(
+        frcnn_config.feature_extractor, is_training, None, convDict=convDict)
+  else: 
+    feature_extractor = _build_faster_rcnn_feature_extractor(
+        frcnn_config.feature_extractor, is_training)
 
   number_of_stages = frcnn_config.number_of_stages
   first_stage_anchor_generator = anchor_generator_builder.build(
