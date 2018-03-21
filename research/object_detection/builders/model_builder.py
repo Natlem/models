@@ -274,7 +274,7 @@ def _build_faster_rcnn_model(frcnn_config, is_training, add_summaries, convDict=
         frcnn_config.feature_extractor, is_training, None, convDict=convDict)
   else: 
     feature_extractor = _build_faster_rcnn_feature_extractor(
-        frcnn_config.feature_extractor, is_training)
+        frcnn_config.feature_extractor, is_training, None, None)
 
   number_of_stages = frcnn_config.number_of_stages
   first_stage_anchor_generator = anchor_generator_builder.build(

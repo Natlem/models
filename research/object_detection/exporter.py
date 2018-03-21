@@ -408,7 +408,8 @@ def export_inference_graph(input_type,
                            output_directory,
                            input_shape=None,
                            output_collection_name='inference_op',
-                           additional_output_tensor_names=None):
+                           additional_output_tensor_names=None,
+                           convDict=None):
   """Exports inference graph for the model specified in the pipeline config.
 
   Args:
@@ -424,8 +425,14 @@ def export_inference_graph(input_type,
     additional_output_tensor_names: list of additional output
       tensors to include in the frozen graph.
   """
-  detection_model = model_builder.build(pipeline_config.model,
+  detection_nodel = None
+  if convDict != None:
+    detection_model = model_builder.build(pipeline_config.model,
+                                        is_training=False, add_summaries=True,convDict=convDict)
+  else:
+    detection_model = model_builder.build(pipeline_config.model,
                                         is_training=False)
+
   _export_inference_graph(input_type, detection_model,
                           pipeline_config.eval_config.use_moving_averages,
                           trained_checkpoint_prefix,

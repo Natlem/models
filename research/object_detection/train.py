@@ -113,7 +113,9 @@ def main(_):
   model_fn = functools.partial(
       model_builder.build,
       model_config=model_config,
-      is_training=True)
+      is_training=True,
+      add_summaries=True,
+      convDict=None)
 
   def get_next(config):
     return dataset_util.make_initializable_iterator(

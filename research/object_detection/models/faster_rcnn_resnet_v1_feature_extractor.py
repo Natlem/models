@@ -65,8 +65,7 @@ class FasterRCNNResnetV1FeatureExtractor(
     self._architecture = architecture
     self._resnet_model = resnet_model
     self._convDict = convDict
-    if self._convDict is None:
-      raise ValueError('HUMMMMMMMMMMMMMMMMM')
+    
     super(FasterRCNNResnetV1FeatureExtractor, self).__init__(
         is_training, first_stage_features_stride, batch_norm_trainable,
         reuse_weights, weight_decay)
@@ -219,7 +218,8 @@ class FasterRCNNResnet34FeatureExtractor(FasterRCNNResnetV1FeatureExtractor):
                first_stage_features_stride,
                batch_norm_trainable=False,
                reuse_weights=None,
-               weight_decay=0.0):
+               weight_decay=0.0,
+               convDict=None):
     """Constructor.
 
     Args:
