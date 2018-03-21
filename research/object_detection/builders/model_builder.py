@@ -183,6 +183,8 @@ def _build_ssd_model(ssd_config, is_training, add_summaries):
   matcher = matcher_builder.build(ssd_config.matcher)
   region_similarity_calculator = sim_calc.build(
       ssd_config.similarity_calculator)
+  encode_background_as_zeros = ssd_config.encode_background_as_zeros
+  negative_class_weight = ssd_config.negative_class_weight
   ssd_box_predictor = box_predictor_builder.build(hyperparams_builder.build,
                                                   ssd_config.box_predictor,
                                                   is_training, num_classes)
@@ -195,6 +197,7 @@ def _build_ssd_model(ssd_config, is_training, add_summaries):
    localization_weight,
    hard_example_miner) = losses_builder.build(ssd_config.loss)
   normalize_loss_by_num_matches = ssd_config.normalize_loss_by_num_matches
+  normalize_loc_loss_by_codesize = ssd_config.normalize_loc_loss_by_codesize
 
   return ssd_meta_arch.SSDMetaArch(
       is_training,
@@ -204,6 +207,8 @@ def _build_ssd_model(ssd_config, is_training, add_summaries):
       feature_extractor,
       matcher,
       region_similarity_calculator,
+      encode_background_as_zeros,
+      negative_class_weight,
       image_resizer_fn,
       non_max_suppression_fn,
       score_conversion_fn,
@@ -213,7 +218,8 @@ def _build_ssd_model(ssd_config, is_training, add_summaries):
       localization_weight,
       normalize_loss_by_num_matches,
       hard_example_miner,
-      add_summaries=add_summaries)
+      add_summaries=add_summaries,
+      normalize_loc_loss_by_codesize=normalize_loc_loss_by_codesize)
 
 
 def _build_faster_rcnn_feature_extractor(

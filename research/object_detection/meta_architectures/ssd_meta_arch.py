@@ -23,6 +23,7 @@ import re
 import tensorflow as tf
 
 from object_detection.core import box_list
+from object_detection.core import box_list_ops
 from object_detection.core import model
 from object_detection.core import standard_fields as fields
 from object_detection.core import target_assigner
@@ -121,6 +122,8 @@ class SSDMetaArch(model.DetectionModel):
                feature_extractor,
                matcher,
                region_similarity_calculator,
+               encode_background_as_zeros,
+               negative_class_weight,
                image_resizer_fn,
                non_max_suppression_fn,
                score_conversion_fn,
@@ -130,7 +133,8 @@ class SSDMetaArch(model.DetectionModel):
                localization_loss_weight,
                normalize_loss_by_num_matches,
                hard_example_miner,
-               add_summaries=True):
+               add_summaries=True,
+               normalize_loc_loss_by_codesize=False):
     """SSDMetaArch Constructor.
 
     TODO(rathodv,jonathanhuang): group NMS parameters + score converter into
@@ -147,6 +151,10 @@ class SSDMetaArch(model.DetectionModel):
       matcher: a matcher.Matcher object.
       region_similarity_calculator: a
         region_similarity_calculator.RegionSimilarityCalculator object.
+      encode_background_as_zeros: boolean determining whether background
+        targets are to be encoded as an all zeros vector or a one-hot
+        vector (where background is the 0th class).
+      negative_class_weight: Weight for confidence loss of negative anchors.
       image_resizer_fn: a callable for image resizing.  This callable always
         takes a rank-3 image tensor (corresponding to a single image) and
         returns a rank-3 image tensor, possibly with new spatial dimensions and
@@ -171,6 +179,8 @@ class SSDMetaArch(model.DetectionModel):
       hard_example_miner: a losses.HardExampleMiner object (can be None)
       add_summaries: boolean (default: True) controlling whether summary ops
         should be added to tensorflow graph.
+      normalize_loc_loss_by_codesize: whether to normalize localization loss
+        by code size of the box encoder.
     """
     super(SSDMetaArch, self).__init__(num_classes=box_predictor.num_classes)
     self._is_training = is_training
@@ -187,15 +197,20 @@ class SSDMetaArch(model.DetectionModel):
     self._matcher = matcher
     self._region_similarity_calculator = region_similarity_calculator
 
-    # TODO: handle agnostic mode and positive/negative class
+    # TODO(jonathanhuang): handle agnostic mode
     # weights
     unmatched_cls_target = None
-    unmatched_cls_target = tf.constant([1] + self.num_classes * [0], tf.float32)
+    unmatched_cls_target = tf.constant([1] + self.num_classes * [0],
+                                       tf.float32)
+    if encode_background_as_zeros:
+      unmatched_cls_target = tf.constant((self.num_classes + 1) * [0],
+                                         tf.float32)
+
     self._target_assigner = target_assigner.TargetAssigner(
         self._region_similarity_calculator,
         self._matcher,
         self._box_coder,
-        negative_class_weight=1.0,
+        negative_class_weight=negative_class_weight,
         unmatched_cls_target=unmatched_cls_target)
 
     self._classification_loss = classification_loss
@@ -203,6 +218,7 @@ class SSDMetaArch(model.DetectionModel):
     self._classification_loss_weight = classification_loss_weight
     self._localization_loss_weight = localization_loss_weight
     self._normalize_loss_by_num_matches = normalize_loss_by_num_matches
+    self._normalize_loc_loss_by_codesize = normalize_loc_loss_by_codesize
     self._hard_example_miner = hard_example_miner
 
     self._image_resizer_fn = image_resizer_fn
@@ -245,7 +261,7 @@ class SSDMetaArch(model.DetectionModel):
     if inputs.dtype is not tf.float32:
       raise ValueError('`preprocess` expects a tf.float32 tensor')
     with tf.name_scope('Preprocessor'):
-      # TODO: revisit whether to always use batch size as
+      # TODO(jonathanhuang): revisit whether to always use batch size as
       # the number of parallel iterations vs allow for dynamic batching.
       outputs = shape_utils.static_or_dynamic_map_fn(
           self._image_resizer_fn,
@@ -335,15 +351,17 @@ class SSDMetaArch(model.DetectionModel):
     feature_map_spatial_dims = self._get_feature_map_spatial_dims(feature_maps)
     image_shape = shape_utils.combined_static_and_dynamic_shape(
         preprocessed_inputs)
-    self._anchors = self._anchor_generator.generate(
-        feature_map_spatial_dims,
-        im_height=image_shape[1],
-        im_width=image_shape[2])
+    self._anchors = box_list_ops.concatenate(
+        self._anchor_generator.generate(
+            feature_map_spatial_dims,
+            im_height=image_shape[1],
+            im_width=image_shape[2]))
     prediction_dict = self._box_predictor.predict(
         feature_maps, self._anchor_generator.num_anchors_per_location())
-    box_encodings = tf.squeeze(prediction_dict['box_encodings'], axis=2)
-    class_predictions_with_background = prediction_dict[
-        'class_predictions_with_background']
+    box_encodings = tf.squeeze(
+        tf.concat(prediction_dict['box_encodings'], axis=1), axis=2)
+    class_predictions_with_background = tf.concat(
+        prediction_dict['class_predictions_with_background'], axis=1)
     predictions_dict = {
         'preprocessed_inputs': preprocessed_inputs,
         'box_encodings': box_encodings,
@@ -521,8 +539,11 @@ class SSDMetaArch(model.DetectionModel):
                                 1.0)
 
       with tf.name_scope('localization_loss'):
-        localization_loss = ((self._localization_loss_weight / normalizer) *
-                             localization_loss)
+        localization_loss_normalizer = normalizer
+        if self._normalize_loc_loss_by_codesize:
+          localization_loss_normalizer *= self._box_coder.code_size
+        localization_loss = ((self._localization_loss_weight / (
+            localization_loss_normalizer)) * localization_loss)
       with tf.name_scope('classification_loss'):
         classification_loss = ((self._classification_loss_weight / normalizer) *
                                classification_loss)
