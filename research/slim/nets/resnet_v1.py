@@ -203,6 +203,7 @@ def resnet_v1_pruned(inputs,
               output_stride=None,
               include_root_block=True,
               spatial_squeeze=True,
+              store_non_strided_activations=False,
               reuse=None,
               scope=None):
   """Generator for v1 ResNet models.
@@ -279,7 +280,8 @@ def resnet_v1_pruned(inputs,
             output_stride /= 4
           net = resnet_utils.conv2d_same(net, convNum, 7, stride=2, scope='conv1')
           net = slim.max_pool2d(net, [3, 3], stride=2, scope='pool1')
-        net = resnet_utils.stack_blocks_dense(net, blocks, output_stride)
+        net = resnet_utils.stack_blocks_dense(net, blocks, output_stride, store_non_strided_activations)
+ 
         # Convert end_points_collection into a dictionary of end_points.
         end_points = slim.utils.convert_collection_to_dict(
             end_points_collection)

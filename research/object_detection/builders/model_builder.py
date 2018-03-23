@@ -141,7 +141,7 @@ def _build_ssd_feature_extractor(feature_extractor_config, is_training,
   feature_type = feature_extractor_config.type
   depth_multiplier = feature_extractor_config.depth_multiplier
   min_depth = feature_extractor_config.min_depth
-  pad_to_multiple = feature_extractor_config.pad_to_multiple
+  pad_to_multiple = 1 #feature_extractor_config.pad_to_multiple
   batch_norm_trainable = feature_extractor_config.batch_norm_trainable
   use_explicit_padding = feature_extractor_config.use_explicit_padding
   use_depthwise = feature_extractor_config.use_depthwise
@@ -248,6 +248,12 @@ def _build_faster_rcnn_feature_extractor(
         feature_type))
   feature_extractor_class = FASTER_RCNN_FEATURE_EXTRACTOR_CLASS_MAP[
       feature_type]
+  
+  if convDict is None:
+    return feature_extractor_class(
+      is_training, first_stage_features_stride,
+      batch_norm_trainable, reuse_weights, 0.0)
+ 
 
   return feature_extractor_class(
       is_training, first_stage_features_stride,
