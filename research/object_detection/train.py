@@ -45,6 +45,8 @@ import functools
 import json
 import os
 import tensorflow as tf
+import pickle
+
 
 from object_detection import trainer
 from object_detection.builders import dataset_builder
@@ -81,6 +83,10 @@ flags.DEFINE_string('input_config_path', '',
 flags.DEFINE_string('model_config_path', '',
                     'Path to a model_pb2.DetectionModel config file.')
 
+flags.DEFINE_string('convDict_path', '',
+                    'Path to a pruned weight file.')
+
+
 FLAGS = flags.FLAGS
 
 
@@ -109,13 +115,17 @@ def main(_):
   model_config = configs['model']
   train_config = configs['train_config']
   input_config = configs['train_input_config']
+  if len(FLAGS.convDict_path) != 0:
+    convDict = pickle.load(open(FLAGS.convDict_path, 'rb'))
+  else:
+    convDict = None
 
   model_fn = functools.partial(
       model_builder.build,
       model_config=model_config,
       is_training=True,
       add_summaries=True,
-      convDict=None)
+      convDict=convDict)
 
   def get_next(config):
     return dataset_util.make_initializable_iterator(

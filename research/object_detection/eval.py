@@ -46,6 +46,7 @@ Example usage:
 import functools
 import os
 import tensorflow as tf
+import pickle
 
 from object_detection import evaluator
 from object_detection.builders import dataset_builder
@@ -77,6 +78,10 @@ flags.DEFINE_string('model_config_path', '',
 flags.DEFINE_boolean('run_once', False, 'Option to only run a single pass of '
                      'evaluation. Overrides the `max_evals` parameter in the '
                      'provided config.')
+
+flags.DEFINE_string('convDict_path', '',
+                    'Path to a pruned weight file.')
+
 FLAGS = flags.FLAGS
 
 
@@ -108,10 +113,18 @@ def main(unused_argv):
   if FLAGS.eval_training_data:
     input_config = configs['train_input_config']
 
+  if len(FLAGS.convDict_path) != 0:
+    convDict = pickle.load(open(FLAGS.convDict_path, 'rb'))
+  else:
+    convDict = None
+
+
   model_fn = functools.partial(
       model_builder.build,
       model_config=model_config,
-      is_training=False)
+      is_training=False,
+      add_summaries=True,
+      convDict=convDict)
 
   def get_next(config):
     return dataset_util.make_initializable_iterator(

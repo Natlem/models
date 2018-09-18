@@ -526,7 +526,7 @@ def resnet_v1_X(inputs,
 
   blocks = []
   for i,e in enumerate(blocksPre):
-    rb = resnet_v1_block_pruned('block' + str(i), e, num_units=units[i])
+    rb = resnet_v1_block_pruned('block' + str(i + 1), e, num_units=units[i])
     blocks += [rb]
   convNum = convDict['conv1'].shape[3]
 
