@@ -513,9 +513,9 @@ def resnet_v1_X(inputs,
         uDict = {} 
         if "unit" in uk:
           for fk, fv in uv.items():
-            uDict[fk] = fv.shape[3]
+            uDict[fk] = fv[3]
             if fk == 'shortcut':
-              sc = fv.shape[3]
+              sc = fv[3]
           unitDict['convDict'] = uDict
           unitDict['convDict']['shortcut'] = sc
           unitDict['stride'] = 1
@@ -528,7 +528,7 @@ def resnet_v1_X(inputs,
   for i,e in enumerate(blocksPre):
     rb = resnet_v1_block_pruned('block' + str(i + 1), e, num_units=units[i])
     blocks += [rb]
-  convNum = convDict['conv1'].shape[3]
+  convNum = convDict['conv1'][3]
 
   return resnet_v1_pruned(inputs, blocks, convNum, num_classes, is_training,
                    global_pool=global_pool, output_stride=output_stride,
